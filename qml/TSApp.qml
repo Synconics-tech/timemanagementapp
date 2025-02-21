@@ -1,14 +1,15 @@
 import QtQuick 2.6
+import QtQuick.Controls 2.2
 import Lomiri.Components 1.3
 import QtQuick.Window 2.2
 import QtQuick.Layouts 1.11
 
-MainView {
+ApplicationWindow {
 
     id: mainView
     
     // objectName: "TS"  
-    applicationName: "timemanagementapp.synconics"
+    // applicationName: "timemanagementapp.synconics"
 
 //    width: Screen.desktopAvailableWidth < units.gu(130) ? units.gu(40) : units.gu(130)
     width: units.gu(45) //GM: for testing with only one column
@@ -89,12 +90,12 @@ MainView {
             }
         }
         Component.onCompleted: {
+            console.log('>>>>>>>>>>>>>>>>>>>>>>>', Qt.application.name)
            console.log("From OnComplete " + columns);
            if (apLayout.columns > 1){
                 apLayout.addPageToNextColumn(page1, page2);
                 apLayout.addPageToNextColumn(page2, page4);
             }
         }
-        
     }
 }

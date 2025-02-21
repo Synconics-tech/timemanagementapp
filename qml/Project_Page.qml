@@ -193,19 +193,27 @@ Page{
                                         height: units.gu(5)
                                         spacing: units.gu(5) 
 
+                                        Rectangle {
+                                            width: 10  
+                                            height: units.gu(10)
+                                            anchors.top: parent.top
+                                            anchors.topMargin: 1
+                                            color: modelData.color_pallet != null ? modelData.color_pallet : '#FFFFFF'
+                                        }
                                         Row {
                                             spacing: 10
                                             anchors.left: parent.left
-                                            // anchors.leftMargin: units.gu(5)
+                                            anchors.leftMargin: units.gu(2)
                                             anchors.verticalCenter: parent.verticalCenter
                                             width: parent.width * 0.4
                                             id: left_row
 
+
                                             Image {
                                                 id: starImageList
                                                 source: modelData.favorites > 0 ? "images/star-active.svg" : "images/starinactive.svg" 
-                                                width: units.gu(5)
-                                                height: units.gu(5)
+                                                width: units.gu(2)
+                                                height: units.gu(2)
                                                 smooth: true  
                                             }
 
@@ -308,7 +316,6 @@ Page{
                                     onClicked: {
                                         currentRecordId = modelData.id;
                                         rightPanelVisible = true;
-                                        console.log('\n\n rightPanelVisible', rightPanelVisible)
                                         projectFlickable.edit_id= modelData.id; 
                                         rightPanel.loadprojectData();
                                     }
@@ -320,27 +327,28 @@ Page{
                                     
                                     spacing: 0  
                                     
-                                    Rectangle {
-                                        width: units.gu(5)  
-                                        height: units.gu(5)
-                                        anchors.top: parent.top
-                                        anchors.topMargin: units.gu(5)
-                                        color: modelData.color_pallet
-                                    }
 
                                     Column {
-                                        width: parent.width - units.gu(5)  
+                                        width: parent.width
+                                         // - units.gu(5)  
                                         spacing: 0
 
                                         Row {
                                             width: parent.width
                                             height: units.gu(5)
                                             spacing: units.gu(5) 
+                                            Rectangle {
+                                                width: units.gu(1)  
+                                                height: units.gu(5)
+                                                anchors.top: parent.top
+                                                anchors.leftMargin: units.gu(1)
+                                                color: modelData.color_pallet != null ? modelData.color_pallet : '#FFFFFF'
+                                            }
 
                                             Row {
                                                 spacing: 10
                                                 anchors.left: parent.left
-                                                anchors.leftMargin: units.gu(5)
+                                                anchors.leftMargin: units.gu(1)
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 width: parent.width * 0.4
                                                 id: left_row
@@ -348,9 +356,9 @@ Page{
                                                 Image {
                                                     id: starImageList
                                                     source: modelData.favorites > 0 ? "images/star-active.svg" : "images/starinactive.svg" 
-                                                    width: units.gu(5)
-                                                    height: units.gu(5)
-                                                    smooth: true  
+                                                    width: units.gu(2)
+                                                    height: units.gu(2)
+                                                    smooth: true
                                                 }
 
                                                 Text {
@@ -388,7 +396,7 @@ Page{
 
                                         Row {
                                             width: parent.width
-                                            height: units.gu(5)  
+                                            height: units.gu(5)
                                             spacing: units.gu(5)
 
                                             
@@ -441,16 +449,12 @@ Page{
         id: rightPanel
         z: 20
         visible: rightPanelVisible
-        // width: isDesktop() ? parent.width /2 : phoneLarg()? parent.width /2 : parent.width
         height: parent.height
         anchors.top: header.bottom
-        // anchors.topMargin: phoneLarg()?0 :0
         color: "#EFEFEF"
-        // anchors.right: parent.right
         anchors.bottom: parent.bottom
         function loadprojectData() {
             var db = LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
-            // var db = LocalStorage.openDatabaseSync("timemanagement", "1.0", "Time Management", 1000000);
             var rowId = projectFlickable.edit_id;
                 db.transaction(function (tx) {
                     if(workpersonaSwitchState){
@@ -515,18 +519,14 @@ Page{
         
         Column {
             anchors.fill: parent
-            // spacing: 5
             
             Row {
                 width: parent.width
                 anchors.top: parent.top
-                // anchors.topMargin: 5
-                
                 spacing: 5  
 
                 Button {
                     id: crossButton
-                    // anchors.left: parent.right
                     width: units.gu(2)
                     height: units.gu(2)
                     anchors.leftMargin: units.gu(2)
@@ -538,12 +538,6 @@ Page{
                         width: units.gu(2)
                         height: units.gu(2)
                     }
-
-                    // background: Rectangle {
-                    //     color: "transparent"
-                    //     radius: 10
-                    //     border.color: "transparent"
-                    // }
 
                     onClicked: {
                         // rightPanel.visible = false 
@@ -561,7 +555,8 @@ Page{
                     }
                 }
                 Button {
-                    visible: !workpersonaSwitchState
+                    // visible: !workpersonaSwitchState
+                    visible: false
                     id: rightButton
                     anchors.right: crossButton.right
                     // anchors.top: parent.top

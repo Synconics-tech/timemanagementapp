@@ -20,6 +20,8 @@ import Lomiri.Components 1.3
 import QtQuick.Window 2.2
 import QtQuick.LocalStorage 2.7
 import Ubuntu.Components 1.3 as Ubuntu
+import io.thp.pyotherside 1.4
+import "../models/sync.js" as SyncData
 
 
 Page{
@@ -29,22 +31,47 @@ Page{
         title: sync_page.title
     }
 
+    property bool loading: false;
+    // property bool issearchHeader: false
+    property string loadingMessage: "";
+    property bool isPasswordVisible: false;
+
     function queryData() {
         var db = LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
 
         db.transaction(function(tx) {
             var result = tx.executeSql('SELECT * FROM users');
             var accountsList = [];
-            console.log('\n\n result', result.rows.length)
             for (var i = 0; i < result.rows.length; i++) {
-                accountsList.push({'user_id': result.rows.item(i).id, 'name': result.rows.item(i).name, 'link': result.rows.item(i).link, 'database': result.rows.item(i).database, 'username': result.rows.item(i).username})
+                var connect_with = 0
+                if (result.rows.item(i).connectwith_id && result.rows.item(i).connectwith_id != undefined) {
+                    connect_with = result.rows.item(i).connectwith_id;
+                } 
+                accountsList.push({'user_id': result.rows.item(i).id,
+                                 'name': result.rows.item(i).name,
+                                 'link': result.rows.item(i).link,
+                                 'database': result.rows.item(i).database,
+                                 'username': result.rows.item(i).username,
+                                 'connect_with': connect_with,
+                                'api_key': result.rows.item(i).api_key})
             }
-            console.log('\n\n accountsList', JSON.stringify(accountsList))
             accountsListModel.clear();
             for (var i = 0; i < accountsList.length; i++) {
                 accountsListModel.append(accountsList[i]);
             }
         });
+    }
+
+    Python {
+        id: python
+
+        Component.onCompleted: {
+            addImportPath(Qt.resolvedUrl('../src/'));
+            importModule_sync("backend");
+        }
+
+        onError: {
+        }
     }
 
     ListModel {
@@ -53,88 +80,281 @@ Page{
 
     Rectangle {
         width: parent.width
-        anchors.top: header.bottom
-        Flickable {
-            id: projectFlickable
+        height: parent.height
+        anchors.top: parent.top
+        anchors.topMargin: units.gu(3)
+        anchors.left: parent.left
+        anchors.leftMargin: units.gu(3)
+        anchors.right: parent.right
+        anchors.rightMargin: units.gu(1)
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 0
+        color: "#ffffff"
+
+        
+        Rectangle {
+            // spacing: 0
             anchors.fill: parent
-            // anchors.top: header.bottom
-            contentHeight: column.height
-            // clip: true 
-            width: parent.width
-            property string edit_id: ""
-            Column {
-                id: column
+            anchors.top: searchId.bottom  
+            anchors.topMargin: units.gu(2)
+            border.color: "#CCCCCC"
+            border.width: 1
+
+            Flickable {
+                id: listView
+                anchors.fill: parent
                 width: parent.width
-                spacing: 0
-                
-                Repeater {
-                    id: projectListView
-                    model: accountsListModel
-                    delegate: Column {
-                        width: parent.width
-                        Rectangle {
-                            id: menRow
-                            width: parent.width
+                contentHeight: column.height
+                clip: true
+
+
+                Column {
+                    id: column
+                    width: parent.width
+                    spacing: 0
+
+                    Repeater {
+                        model: accountsListModel
+                        delegate: Rectangle {
+                            width:  parent.width
                             height: units.gu(10)
+                            color: "#FFFFFF"
                             border.color: "#CCCCCC"
-                            border.width: 2
+                            border.width: 1
+                           
+                            Column {
+                                spacing: 0
+                                anchors.fill: parent 
 
-                            Row {
-                                width: parent.width
-                                height: units.gu(5)
-                                spacing: 0  
+                                Row {
+                                    width: parent.width
+                                    height: units.gu(10)
+                                    spacing: 20 
+                                    
+                                    Rectangle {
+                                        id: imgmodulename
+                                        width: units.gu(4)
+                                        height: units.gu(4)
+                                        color: "#0078d4"
+                                        radius: 80
+                                        border.color: "#0056a0"
+                                        border.width: 2
+                                        // anchors.rightMargin: 10
+                                        
+                                        anchors.verticalCenter:  parent.verticalCenter 
+                                        anchors.left: parent.left 
+                                        // anchors.leftMargin:  10
 
-                                Column {
-                                    width: parent.width - (units.gu(5))  
-                                    spacing: 0
+                                        
+                                        Text {
+                                            text: model.name.charAt(0).toUpperCase()
+                                            color: "#fff"
+                                            anchors.centerIn: parent
+                                        }
+                                    }
 
-                                    Row {
-                                        width: parent.width
-                                        height: units.gu(5)
-                                        spacing: units.gu(5) 
+                                    Column {
+                                        spacing: 5 
+                                        // width: parent.width - 280
+                                        anchors.centerIn:  parent
 
-                                        Row {
+                                        Text {
+                                            text: model.name
+                                            // font.pixelSize: isDesktop() ? 20 : 40
+                                            color: "#000"
+                                            elide: Text.ElideRight
+                                        }
+
+                                        Text {
+                                            text: (model.link.length > 40) ? model.link.substring(0, 40) + "..." : model.link
+                                            // font.pixelSize: isDesktop() ? 18 : 30
+                                            color: "#0078d4"
+                                            elide: Text.ElideNone
+                                        }
+                                    }
+
+                                    Button {
+                                        width:units.gu(2)
+                                        height:units.gu(2)
+                                        // width: isDesktop() ? 40 : 90
+                                        // height: isDesktop() ? 40 : 90
+
+                                        // background: Rectangle {
+                                        //     color: "transparent"
+                                        //     radius: 10
+                                        //     border.color: "transparent"
+                                        // }
+                                        Image {
+                                            source: "images/reload.png"
+                                            anchors.fill: parent
+                                            smooth: true
+                                        }
+                                        anchors.right:  parent.right
+                                        anchors.rightMargin:  20
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        onClicked: {
+                                            if (model.connect_with == 1) {
+                                                loading = true;
+                                                var failed_sync = false;
+                                                loadingMessage = 'Synchronization for ' + model.name + '!' 
+                                                var filled_password = model.api_key
+                                                var last_user_update = SyncData.getLastModified(model.user_id)
+                                                python.call("backend.fetch_projects", [model.link, model.username, filled_password, {'isTextInputVisible': true, 'input_text': model.database}, last_user_update] , function(projects) {
+                                                    if (projects === undefined) {
+                                                        loading = false;
+                                                        failed_sync = true;
+                                                        return
+                                                    }
+                                                    SyncData.create_projects(projects, model.user_id);
+                                                    python.call("backend.fetch_contacts", [model.link, model.username, filled_password, {'isTextInputVisible': true, 'input_text': model.database}, last_user_update] , function(contacts) {
+                                                        SyncData.create_contacts(contacts, model.user_id)
+                                                        var fetchedAllTasks = SyncData.get_all_tasks(model.user_id, last_user_update)
+                                                        python.call('backend.create_update_tasks', [model.link, model.username, filled_password, {'isTextInputVisible': true, 'input_text': model.database}, fetchedAllTasks, last_user_update], function (obj_data) {
+                                                            SyncData.set_tasks(obj_data.settled_tasks, model.user_id);
+                                                            SyncData.create_tasks(obj_data.updated_tasks, model.user_id);
+                                                            var timesheets = SyncData.fetchTimesheets(model.user_id)
+                                                            python.call("backend.create_timesheets", [model.link, model.username, filled_password, {'isTextInputVisible': true, 'input_text': model.database}, timesheets], function (res) {
+                                                                SyncData.update_timesheet_entries(res, model.user_id)
+                                                            })
+                                                            python.call('backend.fetch_activity_type', [model.link, model.username, filled_password, {'isTextInputVisible': true, 'input_text': model.database}, last_user_update], function(activity_types) {
+                                                                SyncData.create_activity_types(activity_types, model.user_id)
+                                                                var fetchedallActivities = SyncData.fetchAllActivities(model.user_id)
+                                                                python.call('backend.fetch_activities', [model.link, model.username, filled_password, {'isTextInputVisible': true, 'input_text': model.database}, last_user_update, fetchedallActivities], function(activities_dict) {
+                                                                    if (activities_dict === undefined) {
+                                                                        loading = false;
+                                                                        return
+                                                                    }
+                                                                    SyncData.create_activities(activities_dict.activities_list, model.user_id);
+                                                                    SyncData.done_activities(activities_dict.done_activities, model.user_id);
+                                                                    loading = false;
+                                                                    SyncData.update_instance_date(model.user_id)
+                                                                })
+                                                            })
+                                                            var activities = SyncData.fetchActivities(model.user_id)
+                                                            python.call("backend.create_activities", [model.link, model.username, filled_password, {'isTextInputVisible': true, 'input_text': model.database}, activities], function (res) {
+                                                                SyncData.update_activity_entries(res)
+                                                            })
+                                                        })
+                                                        
+                                                        passwordInput.text = ""
+                                                        passwordDialog.close();
+                                                    })
+                                                })
+                                            } else {
+                                                passwordDialog.open()
+                                            }
+                                        }
+                                    }
+                                    Dialog {
+                                        id: passwordDialog
+                                        title: "Enter Password"
+                                        x: (parent.width - width) / 2
+                                        y: 150
+                                        standardButtons: Dialog.Ok | Dialog.Cancel
+                                        
+                                        contentItem: Column {
                                             spacing: 10
-                                            anchors.left: parent.left
-                                            // anchors.leftMargin: units.gu(5)
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            width: parent.width * 0.4
-                                            id: left_row
+                                            padding: 20
 
-                                            Text {
-                                                text: modelData.name
-                                                
-                                                font.pixelSize: units.gu(1)
-                                                color: "#000000"
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                width: parent.width * 0.8  
-                                                elide: Text.ElideRight
+                                            Row {
+                                                spacing: 5
+
+                                                TextField {
+                                                    id: passwordInput
+                                                    placeholderText: "Password"
+                                                    echoMode: isPasswordVisible ? TextInput.Normal : TextInput.Password
+                                                }
+
+                                                Button {
+                                                    height: passwordInput.height
+                                                    width:passwordInput.height
+                                                    Image {
+                                                        source: isPasswordVisible ? "images/show.png" : "images/hide.png"
+                                                        anchors.fill: parent
+                                                        smooth: true
+                                                    }
+                                                    onClicked: {
+                                                        isPasswordVisible = !isPasswordVisible
+                                                    }
+                                                }
                                             }
                                         }
 
-                                    }
-                                    ToolButton {
-                                        id: sync_button
-                                        width: units.gu(5)
-                                        height: units.gu(5)
-                                        anchors.top: parent.top
-                                        anchors.topMargin: 1
-                                        background: Rectangle {
-                                            color: "transparent"  
+                                        onAccepted: {
+                                            loading = true;
+                                            var failed_sync = false;
+                                            loadingMessage = 'Synchronization for ' + model.name + '!' 
+                                            var filled_password = passwordInput.text
+                                            var last_user_update = SyncData.getLastModified(model.user_id)
+                                            python.call("backend.fetch_projects", [model.link, model.username, filled_password, {'isTextInputVisible': true, 'input_text': model.database}, last_user_update] , function(projects) {
+                                                if (projects === undefined) {
+                                                    loading = false;
+                                                    failed_sync = true;
+                                                    return
+                                                }
+                                                SyncData.create_projects(projects, model.user_id);
+                                                python.call("backend.fetch_contacts", [model.link, model.username, filled_password, {'isTextInputVisible': true, 'input_text': model.database}, last_user_update] , function(contacts) {
+                                                    SyncData.create_contacts(contacts, model.user_id)
+                                                    var fetchedAllTasks = SyncData.get_all_tasks(model.user_id, last_user_update)
+                                                    python.call('backend.create_update_tasks', [model.link, model.username, filled_password, {'isTextInputVisible': true, 'input_text': model.database}, fetchedAllTasks, last_user_update], function (obj_data) {
+                                                        SyncData.set_tasks(obj_data.settled_tasks, model.user_id);
+                                                        SyncData.create_tasks(obj_data.updated_tasks, model.user_id);
+                                                        var timesheets = SyncData.fetchTimesheets(model.user_id)
+                                                        python.call("backend.create_timesheets", [model.link, model.username, filled_password, {'isTextInputVisible': true, 'input_text': model.database}, timesheets], function (res) {
+                                                            SyncData.update_timesheet_entries(res, model.user_id)
+                                                        })
+                                                        python.call('backend.fetch_activity_type', [model.link, model.username, filled_password, {'isTextInputVisible': true, 'input_text': model.database}, last_user_update], function(activity_types) {
+                                                            SyncData.create_activity_types(activity_types, model.user_id)
+                                                            var fetchedallActivities = SyncData.fetchAllActivities(model.user_id)
+                                                            python.call('backend.fetch_activities', [model.link, model.username, filled_password, {'isTextInputVisible': true, 'input_text': model.database}, last_user_update, fetchedallActivities], function(activities_dict) {
+                                                                if (activities_dict === undefined) {
+                                                                    loading = false;
+                                                                    return
+                                                                }
+                                                                SyncData.create_activities(activities_dict.activities_list, model.user_id);
+                                                                SyncData.done_activities(activities_dict.done_activities, model.user_id);
+                                                                loading = false;
+                                                                SyncData.update_instance_date(model.user_id)
+                                                            })
+                                                        })
+                                                        var activities = SyncData.fetchActivities(model.user_id)
+                                                        python.call("backend.create_activities", [model.link, model.username, filled_password, {'isTextInputVisible': true, 'input_text': model.database}, activities], function (res) {
+                                                            SyncData.update_activity_entries(res)
+                                                        })
+                                                    })
+                                                    passwordInput.text = ""
+                                                    passwordDialog.close();
+                                                })
+                                            })
                                         }
-                                        contentItem: Ubuntu.Icon {
-                                            name: "sync"
+                                        onRejected: {
+                                            console.log("Dialog cancelled")
                                         }
-                                        // onClicked: {
-                                        //     onClicked:{
-                                        //         dataId.shown = !dataId.shown
-                                        //     }
-                                        // }
                                     }
                                 }
                             }
-
                         }
+                    }
+                }
+            }
+            Item {
+                id: loader
+                visible: loading
+                width: parent.width
+                height: parent.height
+
+                Rectangle {
+                    width: parent.width
+                    height: parent.height
+                    color: "lightgray"
+                    opacity: 0.8
+                    BusyIndicator {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                    }
+                    Text {
+                        anchors.centerIn: parent
+                        text: loadingMessage
+                        font.pixelSize: 50
                     }
                 }
             }

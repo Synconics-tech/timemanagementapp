@@ -817,7 +817,6 @@ Item {
                                         anchors.left: parent.left 
                                         anchors.leftMargin:  10
 
-                                        
                                         Text {
                                             text: model.name.charAt(0).toUpperCase()
                                             color: "#fff"

@@ -71,7 +71,6 @@ def login_odoo(selected_url, username, password, database_dict):
         selected_db = database_dict["selected_db"]
     if not selected_db and database_dict.get("input_text"):
         selected_db = database_dict.get("input_text")
-
     common = xmlrpc.client.ServerProxy(
         "{}/xmlrpc/2/common".format(selected_url)
     )
@@ -521,10 +520,13 @@ def create_update_tasks(
             project_id = task.get("sub_project_id")
 
         def get_format_date(date):
-            if date is not None and date != "mm/dd/yy":
-                return datetime.strptime(date, "%m/%d/%Y").strftime("%Y-%m-%d")
+            if date is not None and date != "mm/dd/yy" and not isinstance(date, (int, float)):
+                try:
+                    return datetime.strptime(date, "%m/%d/%Y").strftime("%Y-%m-%d")
+                except ValueError:
+                    datetime.strptime(date, "%Y-%m-%d")
+                    return date
             return False
-
         prepared_record = {
             "name": task.get("name"),
             "project_id": int(project_id),
