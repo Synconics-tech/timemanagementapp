@@ -1,6 +1,6 @@
 [Desktop Entry]
 _Name=Time Management (Beta Release)
-Exec=qmlscene %U qml/Main.qml
+Exec=qmlscene %U qml/TSApp.qml
 Icon=assets/time_management_logo_4_13.png
 Terminal=false
 Type=Application

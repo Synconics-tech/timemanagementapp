@@ -1,0 +1,1288 @@
+/*
+ * Copyright (C) 2025  Monk Consulting
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 3.
+ *
+ * scrollbarex is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+import QtQuick 2.7
+import QtQuick.Controls 2.2
+import Lomiri.Components 1.3
+import QtQuick.Window 2.2
+import Ubuntu.Components 1.3 as Ubuntu
+import QtQuick.LocalStorage 2.7
+import "../models/Timesheet.js" as Model
+
+Page{
+    id: project
+    title: "Project"
+    header: PageHeader {
+        title: project.title
+        trailingActionBar.actions: [
+            Action {
+                iconName: "add"
+                onTriggered: {
+                    rightPanelVisible = true;
+                }
+            }
+        ]
+    }
+    property var filterprojectlistData: []
+    property var listData: []
+    property int currentRecordId: 0
+    property var rightPanelVisible: false;
+    property var workpersonaSwitchState: true;
+    property bool isProjectEdit: false
+    property bool isEditProjectClicked: false
+    property string selectedColor: ''
+    property int selectedAccountUserId: 0 
+    property int selectedparentProjectId: 0 
+    property var color_indexes: ["#ffffff","#111111","#960334","#FB3778", "#7C0396","#D937FB", "#030396","#3737FB", "#008585","#33FFFF", "#038203","#37FB37", "#787802","#FBFB37", "#964D03","#FB9937"]
+    function fetch_projects_list() {
+        var db = LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
+        filterprojectlistData = []
+        
+        db.transaction(function(tx) {
+            if (workpersonaSwitchState) {
+                var result = tx.executeSql('SELECT * FROM project_project_app where parent_id = 0 AND account_id IS NOT NULL order by last_modified desc');
+            } else {
+                var result = tx.executeSql('SELECT * FROM project_project_app where account_id IS NULL');
+                // parent_id = 0 AND 
+            }
+            for (var i = 0; i < result.rows.length; i++) {
+                var task_total = tx.executeSql('SELECT id, COUNT(*) AS count FROM project_task_app WHERE account_id = ? AND project_id = ?', [result.rows.item(i).account_id, result.rows.item(i).id]);
+                var plannedEndDate = result.rows.item(i).planned_end_date;
+                if (typeof plannedEndDate !== 'string') {
+                    plannedEndDate = String(plannedEndDate);
+                }
+
+                var children_list = [];
+                var child_projects = tx.executeSql('select * from project_project_app where parent_id = ?', [result.rows.item(i).id]);
+
+                for (var child = 0; child < child_projects.rows.length; child++) {
+
+                    var childtask_total = tx.executeSql('SELECT id, COUNT(*) AS count FROM project_task_app WHERE account_id = ? AND project_id = ?', [child_projects.rows.item(child).account_id, child_projects.rows.item(child).id]);
+
+                    var parent_project = tx.executeSql('SELECT name FROM project_project_app WHERE id = ?', [child_projects.rows.item(child).parent_id]);
+                    var parentProject = parent_project.rows.length > 0 ? parent_project.rows.item(0).name || "" : "";
+                    var childplannedEndDate = child_projects.rows.item(child).planned_end_date;
+                    if (typeof childplannedEndDate !== 'string') {
+                        childplannedEndDate = String(childplannedEndDate);
+                    }
+                    children_list.push({
+                        id: child_projects.rows.item(child).id,
+                        total_tasks: childtask_total.rows.item(0).count,
+                        name: child_projects.rows.item(child).name,
+                        favorites: child_projects.rows.item(child).favorites,
+                        status: child_projects.rows.item(child).last_update_status,
+                        allocated_hours: child_projects.rows.item(child).allocated_hours,
+                        planned_end_date: childplannedEndDate,
+                        parentProject: result.rows.item(i).name,
+                        color_pallet: child_projects.rows.item(child).color_pallet
+                    });
+                }
+
+                listData.push({
+                    id: result.rows.item(i).id,
+                    total_tasks: task_total.rows.item(0).count,
+                    name: result.rows.item(i).name,
+                    favorites: result.rows.item(i).favorites,
+                    status: result.rows.item(i).last_update_status,
+                    allocated_hours: result.rows.item(i).allocated_hours,
+                    planned_end_date: plannedEndDate,
+                    children: children_list,
+                    color_pallet: result.rows.item(i).color_pallet
+                });
+
+                filterprojectlistData.push({
+                    id: result.rows.item(i).id,
+                    total_tasks: task_total.rows.item(0).count,
+                    name: result.rows.item(i).name,
+                    favorites: result.rows.item(i).favorites,
+                    status: result.rows.item(i).last_update_status,
+                    allocated_hours: result.rows.item(i).allocated_hours,
+                    planned_end_date: plannedEndDate,
+                    children: children_list,
+                    color_pallet: result.rows.item(i).color_pallet
+                });
+
+                projectListView.model = listData;
+            }
+        });
+    }
+    Rectangle {
+        width: parent.width
+        visible: !rightPanelVisible
+        anchors.top: header.bottom
+        Flickable {
+            id: projectFlickable
+            anchors.fill: parent
+            // anchors.top: header.bottom
+            contentHeight: column.height
+            // clip: true 
+            width: parent.width
+            property string edit_id: ""
+            Column {
+                id: column
+                width: parent.width
+                spacing: 0
+                
+                Repeater {
+                    id: projectListView
+                    model: listData
+                    delegate: Column {
+                        width: parent.width
+                        Rectangle {
+                            id: menRow
+                            width: parent.width
+                            height: units.gu(10)
+                            color: currentRecordId === modelData.id ? "#F5F5F5" : "#FFFFFF"  
+                            border.color: "#CCCCCC"
+                            border.width: 2
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: {
+                                    currentRecordId = modelData.id;
+                                    // rightPanel.visible = true
+                                    rightPanelVisible = true;
+                                    projectFlickable.edit_id= modelData.id;
+                                    rightPanel.loadprojectData();
+                                }
+                            }
+
+                            Row {
+                                width: parent.width
+                                height: units.gu(5)
+                                spacing: 0  
+
+                                ToolButton {
+                                    id: down_next
+                                    width: units.gu(5)
+                                    height: units.gu(5)
+                                    anchors.top: parent.top
+                                    anchors.topMargin: 1
+                                    background: Rectangle {
+                                        color: "transparent"  
+                                    }
+                                    contentItem: Ubuntu.Icon {
+                                        name: dataId.shown ? "down" : "next"
+                                    }
+                                    onClicked: {
+                                        onClicked:{
+                                            dataId.shown = !dataId.shown
+                                        }
+                                    }
+                                }
+
+                                Column {
+                                    width: parent.width - (units.gu(5))  
+                                    spacing: 0
+
+                                    Row {
+                                        width: parent.width
+                                        height: units.gu(5)
+                                        spacing: units.gu(5) 
+
+                                        Row {
+                                            spacing: 10
+                                            anchors.left: parent.left
+                                            // anchors.leftMargin: units.gu(5)
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: parent.width * 0.4
+                                            id: left_row
+
+                                            Image {
+                                                id: starImageList
+                                                source: modelData.favorites > 0 ? "images/star-active.svg" : "images/starinactive.svg" 
+                                                width: units.gu(5)
+                                                height: units.gu(5)
+                                                smooth: true  
+                                            }
+
+                                            Text {
+                                                text: "Project: " + modelData.name
+                                                
+                                                font.pixelSize: units.gu(1)
+                                                color: "#000000"
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                width: parent.width * 0.8  
+                                                elide: Text.ElideRight
+                                            }
+                                        }
+
+                                        Text {
+                                            text: " "
+                                            font.pixelSize: units.gu(1)
+                                            color: "#000000"  
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            anchors.left: left_row.right
+                                            // anchors.leftMargin: units.gu(5)
+                                            width: parent.width * 0.4
+                                            elide: Text.ElideRight
+                                        }
+                                        
+                                        Text {
+                                            text: modelData.status
+                                            font.pixelSize: units.gu(1)
+                                            color: "#000000"  
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            anchors.right: parent.right
+                                            horizontalAlignment: Text.AlignRight 
+                                            anchors.rightMargin: units.gu(5)
+                                            width: parent.width * 0.3
+                                        }
+                                    }
+
+                                    Row {
+                                        width: parent.width
+                                        height: units.gu(5)  
+                                        spacing: units.gu(5)
+
+                                        
+                                        Text {
+                                            id: enddate_id
+                                            text: "End Date: " + modelData.planned_end_date
+                                            font.pixelSize: units.gu(1)
+                                            color: "#000000"
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            anchors.left: parent.left
+                                            anchors.leftMargin: units.gu(5)
+                                            width: parent.width * 0.4
+
+                                        }
+
+                                        
+                                        Text {
+                                            text: "Allocated Hours: " + modelData.allocated_hours
+                                            font.pixelSize: units.gu(1)
+                                            color: "#000000"
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            anchors.left: enddate_id.right
+                                            // anchors.leftMargin: units.gu(5)
+                                            width: parent.width * 0.4
+                                        }
+
+                                        
+                                        Text {
+                                            text: "(" + modelData.total_tasks + ") Tasks"
+                                            font.pixelSize: units.gu(1)
+                                            color: "#000000"
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            anchors.right: parent.right
+                                            horizontalAlignment: Text.AlignRight 
+                                            anchors.rightMargin: units.gu(5)
+                                            width: parent.width * 0.3
+                                        }
+                                    }
+                                }
+                            }
+
+                        }
+                        Repeater {
+                            model: modelData.children
+                            id: dataId
+                            property bool shown: false
+                            delegate:Rectangle{
+                                width: parent.width - (units.gu(5))
+                                height: dataId.shown ?  units.gu(5) : 0
+                                color: currentRecordId === modelData.id ? "#F5F5F5" : "#FFFFFF"  
+                                border.color: "#CCCCCC"
+                                border.width:1
+                                id: paneSettingsList
+                                visible: height > 0
+                                anchors.left: parent.left
+                                anchors.leftMargin: units.gu(5)
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: {
+                                        currentRecordId = modelData.id;
+                                        rightPanelVisible = true;
+                                        console.log('\n\n rightPanelVisible', rightPanelVisible)
+                                        projectFlickable.edit_id= modelData.id; 
+                                        rightPanel.loadprojectData();
+                                    }
+                                }
+
+                                Row {
+                                    height: units.gu(5)
+                                    width: parent.width
+                                    
+                                    spacing: 0  
+                                    
+                                    Rectangle {
+                                        width: units.gu(5)  
+                                        height: units.gu(5)
+                                        anchors.top: parent.top
+                                        anchors.topMargin: units.gu(5)
+                                        color: modelData.color_pallet
+                                    }
+
+                                    Column {
+                                        width: parent.width - units.gu(5)  
+                                        spacing: 0
+
+                                        Row {
+                                            width: parent.width
+                                            height: units.gu(5)
+                                            spacing: units.gu(5) 
+
+                                            Row {
+                                                spacing: 10
+                                                anchors.left: parent.left
+                                                anchors.leftMargin: units.gu(5)
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                width: parent.width * 0.4
+                                                id: left_row
+
+                                                Image {
+                                                    id: starImageList
+                                                    source: modelData.favorites > 0 ? "images/star-active.svg" : "images/starinactive.svg" 
+                                                    width: units.gu(5)
+                                                    height: units.gu(5)
+                                                    smooth: true  
+                                                }
+
+                                                Text {
+                                                    text: "Project: " + modelData.name
+                                                    font.pixelSize: units.gu(1)
+                                                    color: "#000000"
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    width: parent.width * 0.8  
+                                                    elide: Text.ElideRight
+                                                }
+                                            }
+                                            
+                                            Text {
+                                                text: modelData.parentProject
+                                                font.pixelSize: units.gu(1)
+                                                color: "#000000"  
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                anchors.left: left_row.right
+                                                anchors.leftMargin: units.gu(5)
+                                                width: parent.width * 0.4
+                                                elide: Text.ElideRight
+                                            }
+                                            
+                                            Text {
+                                                text: modelData.status
+                                                font.pixelSize: units.gu(1)
+                                                color: "#000000"  
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                anchors.right: parent.right
+                                                horizontalAlignment: Text.AlignRight 
+                                                anchors.rightMargin: units.gu(5)
+                                                width: parent.width * 0.3
+                                            }
+                                        }
+
+                                        Row {
+                                            width: parent.width
+                                            height: units.gu(5)  
+                                            spacing: units.gu(5)
+
+                                            
+                                            Text {
+                                                id: enddate_id
+                                                text: "End Date: " + modelData.planned_end_date
+                                                font.pixelSize: units.gu(1)
+                                                color: "#000000"
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                anchors.left: parent.left
+                                                anchors.leftMargin: units.gu(5)
+                                                width: parent.width * 0.4
+
+                                            }
+
+                                            
+                                            Text {
+                                                text: "Allocated Hours: " + modelData.allocated_hours
+                                                font.pixelSize: units.gu(1)
+                                                color: "#000000"
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                anchors.left: enddate_id.right
+                                                anchors.leftMargin: units.gu(5)
+                                                width: parent.width * 0.4
+                                            }
+
+                                            
+                                            Text {
+                                                text: "(" + modelData.total_tasks + ") Tasks"
+                                                font.pixelSize: units.gu(1)
+                                                color: "#000000"
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                anchors.right: parent.right
+                                                horizontalAlignment: Text.AlignRight 
+                                                anchors.rightMargin: units.gu(5)
+                                                width: parent.width * 0.3
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        id: rightPanel
+        z: 20
+        visible: rightPanelVisible
+        // width: isDesktop() ? parent.width /2 : phoneLarg()? parent.width /2 : parent.width
+        height: parent.height
+        anchors.top: header.bottom
+        // anchors.topMargin: phoneLarg()?0 :0
+        color: "#EFEFEF"
+        // anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        function loadprojectData() {
+            var db = LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
+            // var db = LocalStorage.openDatabaseSync("timemanagement", "1.0", "Time Management", 1000000);
+            var rowId = projectFlickable.edit_id;
+                db.transaction(function (tx) {
+                    if(workpersonaSwitchState){
+                        var result = tx.executeSql('SELECT * FROM project_project_app WHERE id = ?', [rowId]);
+                    }else{
+                        var result = tx.executeSql('SELECT * FROM project_project_app where account_id IS NULL AND id = ?', [rowId] );
+                    }
+                    if (result.rows.length > 0) {
+                        var rowData = result.rows.item(0);
+                        var accountId = rowData.account_id || ""; 
+                        if(rowData.planned_start_date != 0) {
+                            var rowDate = new Date(rowData.planned_start_date || "");  
+                            var formattedDate = formatDate(rowDate);  
+                            startDateInput.text = formattedDate;
+                        }else{
+                            startDateInput.text = "mm/dd/yy"
+                        }
+                        if(rowData.planned_end_date != 0) {
+                            var rowDate = new Date(rowData.planned_end_date || "");  
+                            var formattedDate = formatDate(rowDate);  
+                            endDateInput.text = formattedDate;
+                        }else{
+                            endDateInput.text = "mm/dd/yy"
+                        }
+
+                        var parent_project = tx.executeSql('SELECT name FROM project_project_app WHERE id = ?',[rowData.parent_id]);
+                        
+                        if(workpersonaSwitchState){
+                            var account = tx.executeSql('SELECT name FROM users WHERE id = ?', [accountId]);
+                        }
+                        
+                        if(workpersonaSwitchState){
+                            accountInput.text = account.rows.length > 0 ? account.rows.item(0).name || "" : "";
+                        }
+                        nameInput.text = rowData.name
+                        allocatedhoursInput.text = rowData.allocated_hours
+                        selectedAccountUserId = accountId
+                        selectedColor = rowData.color_pallet != null ? rowData.color_pallet : '#FFFFFF'
+                        parentProjectInput.text = parent_project.rows.length > 0 ? parent_project.rows.item(0).name || "" : "";
+                        selectedparentProjectId = rowData.parent_id
+                        img_star.selectedPriority = rowData.favorites || 0; 
+                        descriptionProject.text = rowData.description
+                            .replace(/<[^>]+>/g, " ")     
+                            .replace(/&nbsp;/g, "")       
+                            .replace(/&lt;/g, "<")         
+                            .replace(/&gt;/g, ">")         
+                            .replace(/&amp;/g, "&")        
+                            .replace(/&quot;/g, "\"")      
+                            .replace(/&#39;/g, "'")        
+                            .trim() || "";
+
+
+                    }
+                });
+                function formatDate(date) {
+                    var month = date.getMonth() + 1; 
+                    var day = date.getDate();
+                    var year = date.getFullYear();
+                    return month + '/' + day + '/' + year;
+                }
+        }
+        
+        Column {
+            anchors.fill: parent
+            // spacing: 5
+            
+            Row {
+                width: parent.width
+                anchors.top: parent.top
+                // anchors.topMargin: 5
+                
+                spacing: 5  
+
+                Button {
+                    id: crossButton
+                    // anchors.left: parent.right
+                    width: units.gu(2)
+                    height: units.gu(2)
+                    anchors.leftMargin: units.gu(2)
+                    
+                    
+
+                    Image {
+                        source: "images/cross.svg" 
+                        width: units.gu(2)
+                        height: units.gu(2)
+                    }
+
+                    // background: Rectangle {
+                    //     color: "transparent"
+                    //     radius: 10
+                    //     border.color: "transparent"
+                    // }
+
+                    onClicked: {
+                        // rightPanel.visible = false 
+                        rightPanelVisible = false;
+                        currentRecordId = -1
+                    }
+                } 
+                Timer {
+                    id: projectEditTimer
+                    interval: 2000  
+                    repeat: false
+                    onTriggered: {
+                        isProjectEdit = false;
+                        isEditProjectClicked = false;
+                    }
+                }
+                Button {
+                    visible: !workpersonaSwitchState
+                    id: rightButton
+                    anchors.right: crossButton.right
+                    // anchors.top: parent.top
+                    // anchors.topMargin: 10
+                    width: units.gu(2)
+                    height: units.gu(2)
+                    // anchors.rightMargin: units.gu(30)
+
+                    Image {
+                        source: "images/right.svg" 
+                        width: units.gu(2)
+                        height: units.gu(2)
+                    }
+
+                    // background: Rectangle {
+                    //     color: "transparent"
+                    //     radius: 10
+                    //     border.color: "transparent"
+                    // }
+
+                    onClicked: {
+                        var rowId = projectFlickable.edit_id;
+                        const editData = {
+                            updatedProject: nameInput.text ,
+                            updatedAccount: selectedAccountUserId,
+                            updatedDescription: descriptionProject.text,
+                            updatedstartDate: startDateInput.text,
+                            updatedendDate: endDateInput.text,
+                            updatedparentProject: selectedparentProjectId,                                            
+                            updateallocatedhoursInput:allocatedhoursInput.text,
+                            img_star: img_star.selectedPriority,
+                            rowId: rowId,
+                            color_pallet: selectedColor
+                        }
+                        if(nameInput.text){
+                            isProjectEdit = true
+                            isEditProjectClicked = true
+                            editprojectData(editData)
+                            filterProjectList(searchField.text)
+                            projectEditTimer.start()
+                            
+
+                        }else{
+                            isProjectEdit = false
+                            isEditProjectClicked = true
+                            projectEditTimer.start()
+                        }
+                    }
+                }
+            }
+
+            Flickable {
+                id: flickableContainerProject
+                width: parent.width
+                
+                height: parent.height  
+                contentHeight: projectItemedit.childrenRect.height
+                anchors.fill: parent
+                flickableDirection: Flickable.VerticalFlick  
+                anchors.top: parent.top
+                Item {
+                    id: projectItemedit
+                    height: projectItemedit.childrenRect.height
+                     // + 100
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.leftMargin: 0
+                    anchors.topMargin: units.gu(5)
+                    Row {
+                        anchors.left: parent.left
+                        Column {
+                            spacing: 10
+                            width: units.gu(20)
+                            Label { text: "Name" 
+                            width: units.gu(10)
+                            height: units.gu(3)
+                            // height: isDesktop() ? 25 : phoneLarg()?50:80
+                            font.pixelSize: units.gu(2)
+                            }
+                            Label { text: "Planned Start Date"
+                            width: units.gu(10)
+                            height: units.gu(3)
+                            // height: isDesktop() ? 25 : phoneLarg()?50:80
+                            font.pixelSize: units.gu(2)
+                            }
+                            Label { text: "Planned End Date " 
+                            width: units.gu(10)
+                            height: units.gu(3)
+                            // height: isDesktop() ? 25 : phoneLarg()?50:80
+                            font.pixelSize: units.gu(2)
+                            }
+                            Label { text: "Instance" 
+                            width: units.gu(10)
+                            height: units.gu(3)
+                            visible: workpersonaSwitchState
+                            // height: isDesktop() ? 25 : phoneLarg()?50:80
+                            font.pixelSize: units.gu(2)
+                            }
+                            Label { text: "Parent Project" 
+                            width: units.gu(10)
+                            height: units.gu(3)
+                            // height: isDesktop() ? 25 : phoneLarg()?50:80
+                            font.pixelSize: units.gu(2)
+                            }
+                            Label { text: "Allocated Hours" 
+                            width: units.gu(10)
+                            height: units.gu(3)
+                            // height: isDesktop() ? 25 : phoneLarg()?50:80
+                            font.pixelSize: units.gu(2)
+                            }
+                            
+                            Label { text: "Description" 
+                            width: units.gu(10)
+                            height: units.gu(3)
+                            // height: descriptionProject.height
+                            font.pixelSize: units.gu(2)
+                            }
+
+                            Label { text: "Favorites" 
+                                width: units.gu(10)
+                                height: units.gu(3)
+                                // height: isDesktop() ? 25 : phoneLarg()?50:80
+                                font.pixelSize: units.gu(2)
+                            }
+                            Label { text: "Color Pallet" 
+                                width: units.gu(10)
+                                height: units.gu(3)
+                                // height: isDesktop() ? 25 : phoneLarg()?50:80
+                                font.pixelSize: units.gu(2)
+                            }
+                        }
+                        Column {
+                            spacing: 10
+                            
+                            Rectangle {
+                                width: units.gu(20)
+                                height: units.gu(3)
+                                color: "transparent"
+
+                                Rectangle {
+                                    height: 1
+                                    width: parent.width
+                                    color: "black"
+                                    anchors.bottom: parent.bottom
+                                }
+
+                                TextInput {
+                                    id: nameInput
+                                    font.pixelSize: units.gu(2)
+                                    anchors.fill: parent
+                                    readOnly: workpersonaSwitchState
+
+                                    Text {
+                                        id: namePlaceholder
+                                        text: "Name"
+                                        font.pixelSize: units.gu(2)
+                                        color: "#aaa"
+                                        anchors.fill: parent
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+
+                                    onTextChanged: {
+                                        namePlaceholder.visible = nameInput.text.length === 0;
+                                    }
+                                }
+                            }
+                            Rectangle {
+                                width: units.gu(20)
+                                height: units.gu(3)
+                                color: "transparent"
+
+                                Rectangle {
+                                    height: 1
+                                    width:  parent.width
+                                    color: "black"
+                                    anchors.bottom: parent.bottom
+                                }
+                                TextInput {
+                                    font.pixelSize: units.gu(2)
+                                    anchors.fill: parent
+                                    id: startDateInput
+                                    readOnly: workpersonaSwitchState
+                                    Text {
+                                        id: startDateplaceholder
+                                        text: "Date"
+                                        font.pixelSize: units.gu(2)
+                                        color: "#aaa"
+                                        anchors.fill: parent
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+
+                                    Dialog {
+                                        id: startDateDialog
+                                        width: units.gu(10)
+                                        height: units.gu(10)
+                                        padding: 0
+                                        margins: 0
+                                        visible: false
+
+                                        DatePicker {
+                                            id: datePickerstartDate
+                                            onClicked: {
+                                                startDateInput.text = Qt.formatDate(date, 'M/d/yyyy').toString()
+                                            }
+                                        }
+                                    }
+                                    MouseArea {
+                                        visible: !workpersonaSwitchState
+                                        anchors.fill: parent
+                                        onClicked: {
+                                            var now = new Date()
+                                            datePickerstartDate.selectedDate = now
+                                            datePickerstartDate.currentIndex = now.getMonth()
+                                            datePickerstartDate.selectedYear = now.getFullYear()
+                                            startDateDialog.visible = true
+                                        }
+                                    }
+
+                                    onTextChanged: {
+                                        if (startDateInput.text.length > 0) {
+                                            startDateplaceholder.visible = false
+                                        } else {
+                                            startDateplaceholder.visible = true
+                                        }
+                                    }
+                                    function formatDate(date) {
+                                        var month = date.getMonth() + 1; 
+                                        var day = date.getDate();
+                                        var year = date.getFullYear();
+                                        return month + '/' + day + '/' + year;
+                                    }
+
+                                    
+                                    Component.onCompleted: {
+                                        var currentDate = new Date();
+                                        startDateInput.text = formatDate(currentDate);
+                                    }
+
+                                }
+                            }
+                            Rectangle {
+                                width: units.gu(20)
+                                height: units.gu(3)
+                                color: "transparent"
+
+                                Rectangle {
+                                    height: 1
+                                    width:  parent.width
+                                    color: "black"
+                                    anchors.bottom: parent.bottom
+                                }
+                                TextInput {
+                                    width: parent.width
+                                    height: parent.height
+                                    anchors.fill: parent
+                                    readOnly: workpersonaSwitchState
+                                    id: endDateInput
+                                    Text {
+                                        id: endDateplaceholder
+                                        text: "Date"
+                                        color: "#aaa"
+                                        anchors.fill: parent
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+
+                                    Dialog {
+                                        id: endDateDialog
+                                        padding: 0
+                                        margins: 0
+                                        visible: false
+
+                                        DatePicker {
+                                            id: datePickerendDate
+                                            onClicked: {
+                                                endDateInput.text = Qt.formatDate(date, 'M/d/yyyy').toString()
+                                            }
+                                        }
+                                    }
+                                    MouseArea {
+                                        visible: !workpersonaSwitchState
+                                        anchors.fill: parent
+                                        onClicked: {
+                                            var now = new Date()
+                                            datePickerendDate.selectedDate = now
+                                            datePickerendDate.currentIndex = now.getMonth()
+                                            datePickerendDate.selectedYear = now.getFullYear()
+                                            endDateDialog.visible = true
+                                        }
+                                    }
+                                    onTextChanged: {
+                                        if (endDateInput.text.length > 0) {
+                                            endDateplaceholder.visible = false
+                                        } else {
+                                            endDateplaceholder.visible = true
+                                        }
+                                    }
+                                    function formatDate(date) {
+                                        var month = date.getMonth() + 1; 
+                                        var day = date.getDate();
+                                        var year = date.getFullYear();
+                                        return month + '/' + day + '/' + year;
+                                    }
+
+                                    
+                                    Component.onCompleted: {
+                                        var currentDate = new Date();
+                                        endDateInput.text = formatDate(currentDate);
+                                    }
+
+                                }
+                            }
+                            Rectangle {
+                                width: units.gu(20)
+                                height: units.gu(3)
+                                color: "transparent"
+                                visible: workpersonaSwitchState
+
+                                Rectangle {
+                                    height: 1
+                                    width:  parent.width
+                                    color: "black"
+                                    anchors.bottom: parent.bottom
+                                }
+
+                                ListModel {
+                                    id: accountList
+                                }
+
+                                TextInput {
+                                    width: parent.width
+                                    height: parent.height
+                                    anchors.fill: parent
+                                    
+                                    id: accountInput
+                                    Text {
+                                        id: accountplaceholder
+                                        text: "Instance"
+                                        color: "#aaa"
+                                        anchors.fill: parent
+                                        verticalAlignment: Text.AlignVCenter
+                                        
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent                                                        
+                                    }
+
+                                    Menu {
+                                        id: menuAccount
+                                        x: accountInput.x
+                                        y: accountInput.y + accountInput.height
+                                        width: accountInput.width  
+
+                                        Repeater {
+                                            model: accountList
+
+                                            MenuItem {
+                                                width: parent.width
+                                                height: units.gu(5)
+                                                property int accountId: model.id  
+                                                property string accuntName: model.name || ''
+                                                Text {
+                                                    text: accuntName
+                                                    // font.pixelSize: isDesktop() ? 18 : 40
+                                                    bottomPadding: 5
+                                                    topPadding: 5
+                                                    color: "#000"
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    anchors.left: parent.left
+                                                    anchors.leftMargin: 10
+                                                    wrapMode: Text.WordWrap
+                                                    elide: Text.ElideRight   
+                                                    maximumLineCount: 2      
+                                                }
+
+                                                onClicked: {
+                                                    accountInput.text = accuntName
+                                                    selectedAccountUserId = accountId
+                                                    
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    onTextChanged: {
+                                        if (accountInput.text.length > 0) {
+                                            accountplaceholder.visible = false
+                                        } else {
+                                            accountplaceholder.visible = true
+                                        }
+                                    }
+                                }
+                            }
+                            Rectangle {
+                                width: units.gu(20)
+                                height: units.gu(3)
+                                color: "transparent"
+
+                                Rectangle {
+                                    height: 1
+                                    width:  parent.width
+                                    color: "black"
+                                    anchors.bottom: parent.bottom
+                                }
+
+                                ListModel {
+                                    id: parentProject
+                                }
+
+                                TextInput {
+                                    width: parent.width
+                                    height: parent.height
+                                    anchors.fill: parent
+                                    readOnly: workpersonaSwitchState
+                                    id: parentProjectInput
+                                    Text {
+                                        id: parentProjectplaceholder
+                                        text: "Parent Project"
+                                        color: "#aaa"
+                                        anchors.fill: parent
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        visible: !workpersonaSwitchState
+                                        onClicked: {
+                                            parentProject.clear();
+                                            var result = Model.fetch_projects(false, workpersonaSwitchState);
+                                            for (var i = 0; i < result.length; i++) {
+                                                if (projectFlickable.edit_id != result[i].id) {
+                                                    parentProject.append({'id': result[i].id, 'name': result[i].name});
+                                                }
+                                            }
+                                            parentProjectmenu.open();
+                                        }
+                                    }
+
+                                    Menu {
+                                        id: parentProjectmenu
+                                        x: parentProjectInput.x
+                                        y: parentProjectInput.y + parentProjectInput.height
+                                        width: parentProjectInput.width
+                                        Repeater {
+                                            model: parentProject
+
+                                            MenuItem {
+                                                width: parent.width
+                                                property int parentProjectId: model.id  
+                                                property string parentProjectName: model.name || ''
+                                                Text {
+                                                    text: parentProjectName
+                                                    bottomPadding: 5
+                                                    topPadding: 5
+                                                    color: "#000"
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    anchors.left: parent.left
+                                                    anchors.leftMargin: 10
+                                                    wrapMode: Text.WordWrap
+                                                    elide: Text.ElideRight
+                                                    maximumLineCount: 2
+                                                }
+
+                                                onClicked: {
+                                                    parentProjectInput.text = parentProjectName
+                                                    selectedparentProjectId = parentProjectId
+                                                    parentProjectmenu.close()
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    onTextChanged: {
+                                        if (parentProjectInput.text.length > 0) {
+                                            parentProjectplaceholder.visible = false
+                                        } else {
+                                            parentProjectplaceholder.visible = true
+                                        }
+                                    }
+                                }
+                            }
+                            Rectangle {
+                                width: units.gu(20)
+                                height: units.gu(3)
+                                color: "transparent"
+
+                                Rectangle {
+                                    height: 1
+                                    width:  parent.width
+                                    color: "black"
+                                    anchors.bottom: parent.bottom
+                                }
+                                TextInput {
+                                    width: parent.width
+                                    height: parent.height
+                                    anchors.fill: parent
+                                    readOnly: workpersonaSwitchState
+                                    
+                                    id: allocatedhoursInput
+                                    
+                                    Text {
+                                        id: allocatedhoursInputPlaceholder
+                                        text: "00:00"
+                                        color: "#aaa"
+                                        anchors.fill: parent
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+
+                                    onTextChanged: {
+                                        if (allocatedhoursInput.text.length > 0) {
+                                            allocatedhoursInputPlaceholder.visible = false
+                                        } else {
+                                            allocatedhoursInputPlaceholder.visible = true
+                                        }
+                                    }
+                                }
+                            }
+                            Rectangle {
+                                width: units.gu(20)
+                                height: units.gu(3)
+                                color: "transparent"
+
+                                Rectangle {
+                                    height: 1
+                                    width:  parent.width
+                                    color: "black"
+                                    anchors.bottom: parent.bottom
+                                }
+                                TextInput {
+                                    width: parent.width
+                                    height: parent.height
+                                    anchors.fill: parent
+                                    readOnly: workpersonaSwitchState
+                                    
+                                    id: descriptionProject
+                                    
+                                    Text {
+                                        id: descriptionProjectPlaceholder
+                                        text: "Description"
+                                        color: "#aaa"
+                                        anchors.fill: parent
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+
+                                    onTextChanged: {
+                                        if (descriptionProject.text.length > 0) {
+                                            descriptionProjectPlaceholder.visible = false
+                                        } else {
+                                            descriptionProjectPlaceholder.visible = true
+                                        }
+                                    }
+                                }
+                            }
+                            Row {
+                                width: units.gu(10)
+                                height: units.gu(3)
+                                id: img_star
+                                property int selectedPriority: 0
+
+                                Repeater {
+                                    model: 1  
+                                    delegate: Item {
+                                        width: units.gu(2)
+                                        height: units.gu(2)
+                                        Image {
+                                            id: starImage
+                                            source: (index < img_star.selectedPriority) ? "images/star-active.svg" : "images/starinactive.svg"
+                                            width: units.gu(2)
+                                            height: units.gu(2)
+                                            smooth: true  
+                                        }
+                                        MouseArea {
+                                            visible: !workpersonaSwitchState
+                                            anchors.fill: parent
+                                            onClicked: {
+                                                
+                                                if (index + 1 === img_star.selectedPriority) {
+                                                    img_star.selectedPriority = 0;  
+                                                } else {
+                                                    img_star.selectedPriority = index + 1;  
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Rectangle {
+                                width: units.gu(20)
+                                height: units.gu(3)
+                                color: "transparent"
+
+                                Rectangle {
+                                    height: 5
+                                    width:  parent.width
+                                    color: "black"
+                                    anchors.topMargin: units.gu(3)
+                                    anchors.bottom: parent.bottom
+                                }
+
+                                TextInput {
+                                    width: parent.width
+                                    anchors.fill: parent
+                                    
+                                    id: colorInput
+                                    Item {
+                                        id: buttonHeaderAreaSelected
+                                        anchors {
+                                            left: parent.left
+                                            right: parent.right
+                                        }
+                                        height: parent.height
+                                        clip: true
+
+                                        Rectangle {
+                                            anchors {
+                                                fill: parent
+                                                bottomMargin: -10
+                                            }
+                                            radius: 10
+                                            color: selectedColor
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        onClicked: {
+                                            console.log('\n\n colorListModel', colorListModel)
+                                            colorListModel.clear();
+                                            for (var i = 0; i < color_indexes.length; i++) {
+                                                colorListModel.append({'name': color_indexes[i]})
+                                            }
+                                            menuColor.open();
+                                        }
+                                    }
+
+                                    ListModel {
+                                        id: colorListModel
+                                    }
+
+                                    Menu {
+                                        id: menuColor
+                                        x: colorInput.x
+                                        y: colorInput.y + colorInput.height
+                                        width: colorInput.width
+
+                                        Repeater {
+                                            model: colorListModel
+
+                                            MenuItem {
+                                                width: parent.width
+                                                // height: isDesktop() ? 40 : 80
+
+                                                property string sColor: model.name;
+
+                                                Item {
+                                                    id: buttonHeaderArea
+                                                    anchors {
+                                                        top: parent.top
+                                                        left: parent.left
+                                                        right: parent.right
+                                                    }
+                                                    height: parent.height
+                                                    clip: true
+
+                                                    Rectangle{
+                                                        anchors{
+                                                            fill: parent
+                                                            bottomMargin: -10
+                                                        }
+                                                        radius: 10
+                                                        color: sColor
+                                                    }
+                                                }
+
+                                                onClicked: {
+                                                    selectedColor = model.name;
+                                                    menuColor.close();
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    onTextChanged: {
+                                        if (colorInput.text.length > 0) {
+                                            colorplaceholder.visible = false
+                                        } else {
+                                            colorplaceholder.visible = true
+                                        }
+                                    }
+                                }
+                            }
+                            Rectangle {
+                                width: parent.width
+                                height: 50
+                                anchors.left: parent.left
+                                anchors.topMargin: 20
+                                color: "#FFF"
+
+                                Text {
+                                    id: timesheedSavedMessage
+                                    text: isProjectEdit ? "Project is Edit successfully!" : "Project could not be Edit!"
+                                    color: isProjectEdit ? "green" : "red"
+                                    visible: isEditProjectClicked
+                                    // font.pixelSize: isDesktop() ? 18 : 40
+                                    horizontalAlignment: Text.AlignHCenter 
+                                    anchors.centerIn: parent
+
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Component.onCompleted: {
+        fetch_projects_list();
+        console.log('\n\n 1111111111111111111111')
+        // issearchHeader = false
+    }
+
+}
