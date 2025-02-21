@@ -113,7 +113,7 @@ Page{
 
     function prepare_project_list() {
         var projects = Model.fetch_projects(false, workpersonaSwitchState)
-        console.log("In prepare_project_list()")      
+        console.log("In prepare_project_list()", JSON.stringify(projects))      
         for (var project = 0; project < projects.length; project++) {
             projectModel1.append({'id': projects[project].id, 'name': projects[project].name})
             projectModel.append({'name': projects[project].name})
