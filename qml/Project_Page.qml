@@ -127,7 +127,7 @@ Page{
             id: projectFlickable
             anchors.fill: parent
             // anchors.top: header.bottom
-            contentHeight: column.height
+            contentHeight: units.gu(10) * listData.length
             // clip: true 
             width: parent.width
             property string edit_id: ""
