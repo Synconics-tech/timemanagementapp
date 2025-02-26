@@ -84,7 +84,12 @@ function fetch_tasks_list(project_id, sub_project_id, is_work_state) {
         if (is_work_state) {
             var tasks = tx.executeSql('SELECT * FROM project_task_app\
                                  where project_id = ? AND account_id != 0 AND sub_project_id = ?',
-                                [project_id, sub_project_id]);
+                                [project_id, sub_project_id != 0 ? sub_project_id : null]);
+            if (sub_project_id == 0) {
+                tasks = tx.executeSql('SELECT * FROM project_task_app\
+                                     where project_id = ? AND account_id != 0',
+                                    [project_id]);
+            }
         } else {
             var tasks = tx.executeSql('SELECT * FROM project_task_app\
                                      where account_id is NULL \
@@ -118,6 +123,7 @@ function fetch_sub_tasks(task_id, is_work_state) {
         if (is_work_state) {
             var sub_tasks = tx.executeSql('SELECT * FROM project_task_app\
                                          where parent_id = ?', [task_id]);
+            console.log('\n\n fetch_sub_tasks >>>>>>>>>>>>>>>>>', task_id)
         } else {
             var sub_tasks = tx.executeSql('SELECT * FROM project_task_app\
                                          where account_id IS NULL AND parent_id = ?',

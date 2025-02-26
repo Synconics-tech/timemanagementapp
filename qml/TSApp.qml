@@ -90,7 +90,6 @@ ApplicationWindow {
             }
         }
         Component.onCompleted: {
-            console.log('>>>>>>>>>>>>>>>>>>>>>>>', Qt.application.name)
            console.log("From OnComplete " + columns);
            if (apLayout.columns > 1){
                 apLayout.addPageToNextColumn(page1, page2);

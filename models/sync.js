@@ -1,5 +1,61 @@
 .import QtQuick.LocalStorage 2.7 as Sql
 
+
+function createAccount(name, link, database, username, selectedconnectwithId, apikey) {
+    var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
+    var duplicate_account = false;
+    db.transaction(function(tx) {
+        var check_account = tx.executeSql('SELECT id, COUNT(*) AS count FROM users WHERE link = ? AND database = ? AND username = ?', [link, database, username]);
+        if (check_account.rows.item(0).count === 0) {
+            var api_key_text = ' ';
+            if (selectedconnectwithId == 1) {
+                api_key_text = apikey;
+            }
+            tx.executeSql('INSERT INTO users (name, link, database, username, connectwith_id, api_key) VALUES (?, ?, ?, ?, ?, ?)', [name, link, database, username, selectedconnectwithId, api_key_text]);
+            // var newResult = tx.executeSql('SELECT id FROM users WHERE link = ? AND database = ? AND username = ?', [link, database, username]);
+        } else {
+            duplicate_account = true;
+            // currentUserId = result.rows.item(0).id;
+        }
+    });
+    return duplicate_account;
+}
+
+
+function get_accounts_list() {
+    var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
+
+    var accountsList = [];
+    db.transaction(function(tx) {
+        var accounts = tx.executeSql('SELECT * FROM users');
+        for (var account = 0; account < accounts.rows.length; account++) {
+            var connect_with = 0
+            if (accounts.rows.item(account).connectwith_id && accounts.rows.item(account).connectwith_id != undefined) {
+                connect_with = accounts.rows.item(account).connectwith_id;
+            } 
+            console.log('\n\n accounts.rows.item(account).api_key', accounts.rows.item(account).api_key)
+            accountsList.push({'user_id': accounts.rows.item(account).id,
+                             'name': accounts.rows.item(account).name,
+                             'link': accounts.rows.item(account).link,
+                             'database': accounts.rows.item(account).database,
+                             'username': accounts.rows.item(account).username,
+                             'connect_with': connect_with,
+                            'api_key': accounts.rows.item(account).api_key})
+        }
+    });
+    return accountsList;
+}
+
+function deleteAccount(account_id) {
+    var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
+    console.log('\n\n deleteAccount account_id', account_id)
+    db.transaction(function(tx) {
+        tx.executeSql('DELETE FROM users where id =' + parseInt(account_id));
+        // tx.executeSql('commit');
+    });
+    return
+}
+
 function getLastModified(user_id) {
     var last_modified = false;
     var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);

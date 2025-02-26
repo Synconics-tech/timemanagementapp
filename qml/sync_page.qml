@@ -37,29 +37,24 @@ Page{
     property bool isPasswordVisible: false;
 
     function queryData() {
-        var db = LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
-
-        db.transaction(function(tx) {
-            var result = tx.executeSql('SELECT * FROM users');
-            var accountsList = [];
-            for (var i = 0; i < result.rows.length; i++) {
-                var connect_with = 0
-                if (result.rows.item(i).connectwith_id && result.rows.item(i).connectwith_id != undefined) {
-                    connect_with = result.rows.item(i).connectwith_id;
-                } 
-                accountsList.push({'user_id': result.rows.item(i).id,
-                                 'name': result.rows.item(i).name,
-                                 'link': result.rows.item(i).link,
-                                 'database': result.rows.item(i).database,
-                                 'username': result.rows.item(i).username,
-                                 'connect_with': connect_with,
-                                'api_key': result.rows.item(i).api_key})
+        var accountsList = SyncData.get_accounts_list();
+        // console.log('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>.', JSON.stringify(accountsList))
+        for (var account = 0; account < accountsList.length; account++) {
+            // console.log('>>>>>>>>>>>>>>>> accountsList[account]', JSON.stringify(accountsList[account]))
+            // accountsListModel.append(accountsList[account]);
+            console.log('\n\n >>>>>>>>>>>>>>>>>>>>', accountsList[account].api_key, accountsList[account].connect_with)
+            var api_key = '';
+            if (accountsList[account].connect_with == 1) {
+                api_key = accountsList[account].api_key;
             }
-            accountsListModel.clear();
-            for (var i = 0; i < accountsList.length; i++) {
-                accountsListModel.append(accountsList[i]);
-            }
-        });
+            accountsListModel.append({'user_id': accountsList[account].user_id,
+                                     'name': accountsList[account].name,
+                                     'link': accountsList[account].link,
+                                     'database': accountsList[account].database,
+                                     'username': accountsList[account].username,
+                                     'connect_with': accountsList[account].connect_with,
+                                     'api_key': api_key,})
+        }
     }
 
     Python {
@@ -95,7 +90,7 @@ Page{
         Rectangle {
             // spacing: 0
             anchors.fill: parent
-            anchors.top: searchId.bottom  
+            // anchors.top: searchId.bottom  
             anchors.topMargin: units.gu(2)
             border.color: "#CCCCCC"
             border.width: 1
@@ -235,7 +230,6 @@ Page{
                                                                 SyncData.update_activity_entries(res)
                                                             })
                                                         })
-                                                        
                                                         passwordInput.text = ""
                                                         passwordDialog.close();
                                                     })

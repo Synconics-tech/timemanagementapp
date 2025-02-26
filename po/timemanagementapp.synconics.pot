@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: timemanagementapp.synconics\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-21 13:42+0000\n"
+"POT-Creation-Date: 2025-02-26 12:13+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,15 +17,15 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ../qml/Timesheet.qml:595
+#: ../qml/Timesheet.qml:760
 msgid "Start"
 msgstr ""
 
-#: ../qml/Timesheet.qml:624
+#: ../qml/Timesheet.qml:789
 msgid "Stop"
 msgstr ""
 
-#: ../qml/Timesheet.qml:642
+#: ../qml/Timesheet.qml:807
 msgid "Manual"
 msgstr ""
 
