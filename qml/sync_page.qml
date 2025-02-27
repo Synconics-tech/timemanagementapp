@@ -27,22 +27,17 @@ import "../models/sync.js" as SyncData
 Page{
     id: sync_page
     title: "Sync"
-        header: PageHeader {
+    header: PageHeader {
         title: sync_page.title
     }
 
     property bool loading: false;
-    // property bool issearchHeader: false
     property string loadingMessage: "";
     property bool isPasswordVisible: false;
 
     function queryData() {
         var accountsList = SyncData.get_accounts_list();
-        // console.log('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>.', JSON.stringify(accountsList))
         for (var account = 0; account < accountsList.length; account++) {
-            // console.log('>>>>>>>>>>>>>>>> accountsList[account]', JSON.stringify(accountsList[account]))
-            // accountsListModel.append(accountsList[account]);
-            console.log('\n\n >>>>>>>>>>>>>>>>>>>>', accountsList[account].api_key, accountsList[account].connect_with)
             var api_key = '';
             if (accountsList[account].connect_with == 1) {
                 api_key = accountsList[account].api_key;
@@ -101,7 +96,7 @@ Page{
                 width: parent.width
                 contentHeight: column.height
                 clip: true
-
+                flickableDirection: Flickable.VerticalFlick
 
                 Column {
                     id: column
@@ -348,7 +343,6 @@ Page{
                     Text {
                         anchors.centerIn: parent
                         text: loadingMessage
-                        font.pixelSize: 50
                     }
                 }
             }

@@ -21,6 +21,7 @@ import QtQuick.Window 2.2
 import Ubuntu.Components 1.3 as Ubuntu
 import QtQuick.LocalStorage 2.7
 import "../models/Timesheet.js" as Model
+import "../models/Project.js" as Project
 
 Page{
     id: project
@@ -48,86 +49,22 @@ Page{
     property int selectedparentProjectId: 0 
     property var color_indexes: ["#ffffff","#111111","#960334","#FB3778", "#7C0396","#D937FB", "#030396","#3737FB", "#008585","#33FFFF", "#038203","#37FB37", "#787802","#FBFB37", "#964D03","#FB9937"]
     function fetch_projects_list() {
-        var db = LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
-        filterprojectlistData = []
-        
-        db.transaction(function(tx) {
-            if (workpersonaSwitchState) {
-                var result = tx.executeSql('SELECT * FROM project_project_app where parent_id = 0 AND account_id IS NOT NULL order by last_modified desc');
-            } else {
-                var result = tx.executeSql('SELECT * FROM project_project_app where account_id IS NULL');
-                // parent_id = 0 AND 
-            }
-            for (var i = 0; i < result.rows.length; i++) {
-                var task_total = tx.executeSql('SELECT id, COUNT(*) AS count FROM project_task_app WHERE account_id = ? AND project_id = ?', [result.rows.item(i).account_id, result.rows.item(i).id]);
-                var plannedEndDate = result.rows.item(i).planned_end_date;
-                if (typeof plannedEndDate !== 'string') {
-                    plannedEndDate = String(plannedEndDate);
-                }
-
-                var children_list = [];
-                var child_projects = tx.executeSql('select * from project_project_app where parent_id = ?', [result.rows.item(i).id]);
-
-                for (var child = 0; child < child_projects.rows.length; child++) {
-
-                    var childtask_total = tx.executeSql('SELECT id, COUNT(*) AS count FROM project_task_app WHERE account_id = ? AND project_id = ?', [child_projects.rows.item(child).account_id, child_projects.rows.item(child).id]);
-
-                    var parent_project = tx.executeSql('SELECT name FROM project_project_app WHERE id = ?', [child_projects.rows.item(child).parent_id]);
-                    var parentProject = parent_project.rows.length > 0 ? parent_project.rows.item(0).name || "" : "";
-                    var childplannedEndDate = child_projects.rows.item(child).planned_end_date;
-                    if (typeof childplannedEndDate !== 'string') {
-                        childplannedEndDate = String(childplannedEndDate);
-                    }
-                    children_list.push({
-                        id: child_projects.rows.item(child).id,
-                        total_tasks: childtask_total.rows.item(0).count,
-                        name: child_projects.rows.item(child).name,
-                        favorites: child_projects.rows.item(child).favorites,
-                        status: child_projects.rows.item(child).last_update_status,
-                        allocated_hours: child_projects.rows.item(child).allocated_hours,
-                        planned_end_date: childplannedEndDate,
-                        parentProject: result.rows.item(i).name,
-                        color_pallet: child_projects.rows.item(child).color_pallet
-                    });
-                }
-
-                listData.push({
-                    id: result.rows.item(i).id,
-                    total_tasks: task_total.rows.item(0).count,
-                    name: result.rows.item(i).name,
-                    favorites: result.rows.item(i).favorites,
-                    status: result.rows.item(i).last_update_status,
-                    allocated_hours: result.rows.item(i).allocated_hours,
-                    planned_end_date: plannedEndDate,
-                    children: children_list,
-                    color_pallet: result.rows.item(i).color_pallet
-                });
-
-                filterprojectlistData.push({
-                    id: result.rows.item(i).id,
-                    total_tasks: task_total.rows.item(0).count,
-                    name: result.rows.item(i).name,
-                    favorites: result.rows.item(i).favorites,
-                    status: result.rows.item(i).last_update_status,
-                    allocated_hours: result.rows.item(i).allocated_hours,
-                    planned_end_date: plannedEndDate,
-                    children: children_list,
-                    color_pallet: result.rows.item(i).color_pallet
-                });
-
-                projectListView.model = listData;
-            }
-        });
+        var projectsList = Project.fetch_projects_list(workpersonaSwitchState);
+        listData = projectsList;
+        projectListView.model = projectsList;
     }
     Rectangle {
         width: parent.width
         visible: !rightPanelVisible
         anchors.top: header.bottom
+        anchors.fill: parent
+        anchors.topMargin: header.height
+        // height: parent.height
         Flickable {
             id: projectFlickable
             anchors.fill: parent
-            // anchors.top: header.bottom
-            contentHeight: units.gu(10) * listData.length
+            contentHeight: column.height
+            flickableDirection: Flickable.VerticalFlick
             // clip: true 
             width: parent.width
             property string edit_id: ""
