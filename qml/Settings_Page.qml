@@ -74,6 +74,7 @@ Page{
                 anchors.fill: parent
                 width: parent.width
                 contentHeight: column.height
+                flickableDirection: Flickable.VerticalFlick
                 clip: true
                 Column {
                     id: column

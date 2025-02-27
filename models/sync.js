@@ -1,5 +1,14 @@
 .import QtQuick.LocalStorage 2.7 as Sql
 
+/* Name: createAccount
+* This function will create record in users table and it will return true in case of duplicate record
+* -> name -> name for the account
+* -> link -> link of the Odoo instance
+* -> database -> database name for Odoo instance
+* -> username -> User name of Odoo instance
+* -> selectedconnectwithId -> Whether connection with API Key or Password
+* -> apikey -> API Key
+*/
 
 function createAccount(name, link, database, username, selectedconnectwithId, apikey) {
     var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
@@ -12,15 +21,16 @@ function createAccount(name, link, database, username, selectedconnectwithId, ap
                 api_key_text = apikey;
             }
             tx.executeSql('INSERT INTO users (name, link, database, username, connectwith_id, api_key) VALUES (?, ?, ?, ?, ?, ?)', [name, link, database, username, selectedconnectwithId, api_key_text]);
-            // var newResult = tx.executeSql('SELECT id FROM users WHERE link = ? AND database = ? AND username = ?', [link, database, username]);
         } else {
             duplicate_account = true;
-            // currentUserId = result.rows.item(0).id;
         }
     });
     return duplicate_account;
 }
 
+/* Name: get_accounts_list
+* This function will return all records of users
+*/
 
 function get_accounts_list() {
     var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
@@ -33,7 +43,6 @@ function get_accounts_list() {
             if (accounts.rows.item(account).connectwith_id && accounts.rows.item(account).connectwith_id != undefined) {
                 connect_with = accounts.rows.item(account).connectwith_id;
             } 
-            console.log('\n\n accounts.rows.item(account).api_key', accounts.rows.item(account).api_key)
             accountsList.push({'user_id': accounts.rows.item(account).id,
                              'name': accounts.rows.item(account).name,
                              'link': accounts.rows.item(account).link,
@@ -46,15 +55,23 @@ function get_accounts_list() {
     return accountsList;
 }
 
+/* Name: deleteAccount
+* This function will delete record from users table
+* account_id -> record id to be deleted
+*/
+
 function deleteAccount(account_id) {
     var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
-    console.log('\n\n deleteAccount account_id', account_id)
     db.transaction(function(tx) {
         tx.executeSql('DELETE FROM users where id =' + parseInt(account_id));
-        // tx.executeSql('commit');
     });
     return
 }
+
+/* Name: deleteAccount
+* This function will return datetime when last sync was done
+* user_id -> record id to fetch last update
+*/
 
 function getLastModified(user_id) {
     var last_modified = false;
@@ -67,6 +84,13 @@ function getLastModified(user_id) {
     })   
     return last_modified;
 }
+
+/* Name: create_projects
+* This function will create, update and delete projects which fetched from Odoo
+* In case of project is deleted then it will remove all related data
+* projects -> list of projects fetched from Odoo
+* instance_id -> account Id to map the projects with this users table id
+*/
 
 function create_projects(projects, instance_id) {
     var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
@@ -98,7 +122,6 @@ function create_projects(projects, instance_id) {
                     odoo_record_id = ? where id = ?", [fetchedProjects[project].name, parseInt(instance_id), parent_project_id,
                     fetchedProjects[project].date_start, fetchedProjects[project].date, fetchedProjects[project].allocated_hours,
                     fetchedProjects[project].is_favorite, fetchedProjects[project].last_update_status, fetchedProjects[project].description, new Date().toISOString(), fetchedProjects[project].id, result.rows.item(0).id])
-                console.log('\n\n complete')
             }
         }
         var deletedRecords = []
@@ -119,31 +142,39 @@ function create_projects(projects, instance_id) {
     });
 }
 
+/* Name: create_contacts
+* This function will create and update res_users which fetched from Odoo
+* contacts -> list of users fetched from Odoo
+* instance_id -> account Id to map the res_users with this users table id
+*/
+
 function create_contacts(contacts, instance_id) {
     if (contacts === undefined) {
         return
     }
-    console.log('\n\n 11111111111111111 create_contacts')
     var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
     db.transaction(function (tx) {
-        console.log('\n\n contacts', contacts, JSON.stringify(contacts))
         for (var contact = 0; contact < contacts.length; contact++) {
-            console.log('\n\n 11111111111111111 222 create_contacts', contacts[contact].id)
             var result = tx.executeSql('SELECT id, COUNT(*) AS count FROM res_users_app WHERE odoo_record_id = ? AND account_id = ?', [contacts[contact].id, parseInt(instance_id)]);
             var length = result.rows.length
             if (result.rows.length == 1 && result.rows.item(0).id == null) {
                 length = 0
             }
             if (length > 0) {
-                console.log('\n\n ', `update res_users_app set name = '${contacts[contact].name}',share = ${contacts[contact].share?1:0},active = ${contacts[contact].active?1:0} where id = ${result.rows.item(0).id}`)
                 tx.executeSql('update res_users_app set name = ?,share = ?,active = ? where id = ?', [contacts[contact].name, contacts[contact].share?1:0, contacts[contact].active?1:0, result.rows.item(0).id])
             } else {
-                console.log('\n\n create user', `INSERT INTO res_users_app (account_id, name, odoo_record_id, share, active) VALUES (${instance_id}, '${contacts[contact].name}', ${contacts[contact].id}, ${contacts[contact].share?1:0}, ${contacts[contact].active?1:0})`)
                 tx.executeSql('INSERT INTO res_users_app (account_id, name, odoo_record_id, share, active) VALUES (?, ?, ?, ?, ?)', [instance_id, contacts[contact].name, contacts[contact].id, contacts[contact].share?1:0,contacts[contact].active?1:0])
             }
         }
     })
 }
+
+/* Name: get_all_tasks
+* This function to fetch existing tasks from database
+* contacts -> list of users fetched from Odoo
+* instance_id -> to fetch tasks related to the instance
+* last_modified -> to fetch tasks which are updated or created after this datetime
+*/
 
 function get_all_tasks(instance_id, last_modified) {
     var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
@@ -176,6 +207,12 @@ function get_all_tasks(instance_id, last_modified) {
     return list_of_tasks;
 }
 
+/* Name: set_tasks
+* This function will set id to fetched tasks
+* created_tasks -> list of tasks fetched from Odoo
+* instance_id -> to map tasks to this instance
+*/
+
 function set_tasks(created_tasks, instance_id) {
     if (created_tasks === undefined) {
         return
@@ -187,6 +224,13 @@ function set_tasks(created_tasks, instance_id) {
         }
     })
 }
+
+/* Name: create_tasks
+* This function will create, update and delete tasks which fetched from Odoo
+* In case of task is deleted then it will remove all related data
+* tasks -> list of tasks fetched from Odoo
+* instance_id -> account Id to map the task with this users table id
+*/
 
 function create_tasks(tasks, instance_id) {
     var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
@@ -219,13 +263,11 @@ function create_tasks(tasks, instance_id) {
             }
             var user_id = false;
             if (fetchedTasks[task].user_ids.length) {
-                console.log('\n\n fetchedTasks[task].user_ids', fetchedTasks[task].user_ids)
                 var parent_query = tx.executeSql('SELECT id, COUNT(*) AS count FROM res_users_app WHERE odoo_record_id IN ('+fetchedTasks[task].user_ids.join(", ")+') AND account_id = ?', [parseInt(instance_id)]);
                 if (parent_query.rows.length !== 0) {
                     user_id = parent_query.rows.item(0).id
                 }
             }
-            console.log('\n\n fetchedTasks[task]', fetchedTasks[task].date_start)
             var start_date = fetchedTasks[task].date_start
             if (start_date == undefined) {
                 start_date = false;
@@ -267,6 +309,11 @@ function create_tasks(tasks, instance_id) {
     });
 }
 
+/* Name: fetchTimesheets
+* This function will return timesheets which are updated after sync
+* instance_id -> to fetch timesheet entries only related to this account
+*/
+
 function fetchTimesheets(instance_id) {
     var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
     var timesheetEntries = [];
@@ -300,6 +347,12 @@ function fetchTimesheets(instance_id) {
     return timesheetEntries;
 }
 
+/* Name: update_timesheet_entries
+* This function will update and delete timesheets after sync
+* timesheet_entries -> details fetched from Odoo after sync
+* instance_id -> to fetch map timesheet entries to this account
+*/
+
 function update_timesheet_entries(timesheet_entries, instance_id) {
     if (timesheet_entries === undefined) {
         return
@@ -326,6 +379,12 @@ function update_timesheet_entries(timesheet_entries, instance_id) {
     });
 }
 
+/* Name: create_activity_types
+* This function will create activity types which are exist in Odoo
+* activities -> details fetched from Odoo after sync
+* instance_id -> to fetch and map activity types to this account
+*/
+
 function create_activity_types(activities, instance_id) {
     if (activities === undefined) {
         return
@@ -343,6 +402,11 @@ function create_activity_types(activities, instance_id) {
     })
 }
 
+/* Name: fetchAllActivities
+* This function will return activities related to the account
+* instance_id -> to get the activities related to this account id
+*/
+
 function fetchAllActivities(instance_id) {
     var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
     var timesheetEntries = [];
@@ -356,6 +420,12 @@ function fetchAllActivities(instance_id) {
     return timesheetEntries;
 
 }
+
+/* Name: create_activities
+* This function will create and update activities which fetched from Odoo
+* activities -> list of activities fetched from Odoo
+* instance_id -> account Id to map the activities with this users table id
+*/
 
 function create_activities(activities, instance_id) {
     if (activities === undefined) {
@@ -399,6 +469,12 @@ function create_activities(activities, instance_id) {
     })
 }
 
+/* Name: done_activities
+* This function will mark activities as done
+* activities -> list of activities fetched from Odoo
+* instance_id -> account Id to map the activities with this users table id
+*/
+
 function done_activities(activities, instance_id) {
     if (activities === undefined) {
         return
@@ -415,6 +491,11 @@ function done_activities(activities, instance_id) {
 
 }
 
+/* Name: update_instance_date
+* This function will update users table record to help when last sync was done
+* instance_id -> account Id
+*/
+
 function update_instance_date(instance_id) {
     var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
     var timesheetEntries = [];
@@ -423,9 +504,14 @@ function update_instance_date(instance_id) {
     });
 }
 
+/* Name: fetchActivities
+* This function will return activities which are remaining for sync
+* instance_id -> account Id
+*/
+
 function fetchActivities(instance_id) {
     var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
-    var timesheetEntries = [];
+    var activities = [];
     db.transaction(function (tx) {
         var result = tx.executeSql('select id, last_modified from users where id = ?', [instance_id]);
         // , last_modified
@@ -451,7 +537,7 @@ function fetchActivities(instance_id) {
                     task_id = fetchTask.rows.item(0).odoo_record_id
                 }
             }
-            timesheetEntries.push({'local_record_id': fetchedEntries.rows.item(record).id, 
+            activities.push({'local_record_id': fetchedEntries.rows.item(record).id, 
                 'user_id': activity_user.rows.item(0).odoo_record_id, 
                 'due_date': fetchedEntries.rows.item(record).due_date, 
                 'activity_type_id': activityTypeId.rows.item(0).odoo_record_id, 
@@ -466,8 +552,13 @@ function fetchActivities(instance_id) {
                 'res_id': fetchedEntries.rows.item(record).resId});
         }
     });
-    return timesheetEntries;
+    return activities;
 }
+
+/* Name: update_activity_entries
+* This function will update record id which is fetched from Odoo after sync
+* activity_entries -> activities to update record Id
+*/
 
 function update_activity_entries(activity_entries) {
     var db = Sql.LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
