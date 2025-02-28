@@ -253,7 +253,7 @@ Page{
                                     onClicked: {
                                         currentRecordId = modelData.id;
                                         rightPanelVisible = true;
-                                        projectFlickable.edit_id= modelData.id; 
+                                        projectFlickable.edit_id= modelData.id;
                                         rightPanel.loadprojectData();
                                     }
                                 }
@@ -391,67 +391,19 @@ Page{
         color: "#EFEFEF"
         anchors.bottom: parent.bottom
         function loadprojectData() {
-            var db = LocalStorage.openDatabaseSync("myDatabase", "1.0", "My Database", 1000000);
             var rowId = projectFlickable.edit_id;
-                db.transaction(function (tx) {
-                    if(workpersonaSwitchState){
-                        var result = tx.executeSql('SELECT * FROM project_project_app WHERE id = ?', [rowId]);
-                    }else{
-                        var result = tx.executeSql('SELECT * FROM project_project_app where account_id IS NULL AND id = ?', [rowId] );
-                    }
-                    if (result.rows.length > 0) {
-                        var rowData = result.rows.item(0);
-                        var accountId = rowData.account_id || ""; 
-                        if(rowData.planned_start_date != 0) {
-                            var rowDate = new Date(rowData.planned_start_date || "");  
-                            var formattedDate = formatDate(rowDate);  
-                            startDateInput.text = formattedDate;
-                        }else{
-                            startDateInput.text = "mm/dd/yy"
-                        }
-                        if(rowData.planned_end_date != 0) {
-                            var rowDate = new Date(rowData.planned_end_date || "");  
-                            var formattedDate = formatDate(rowDate);  
-                            endDateInput.text = formattedDate;
-                        }else{
-                            endDateInput.text = "mm/dd/yy"
-                        }
-
-                        var parent_project = tx.executeSql('SELECT name FROM project_project_app WHERE id = ?',[rowData.parent_id]);
-                        
-                        if(workpersonaSwitchState){
-                            var account = tx.executeSql('SELECT name FROM users WHERE id = ?', [accountId]);
-                        }
-                        
-                        if(workpersonaSwitchState){
-                            accountInput.text = account.rows.length > 0 ? account.rows.item(0).name || "" : "";
-                        }
-                        nameInput.text = rowData.name
-                        allocatedhoursInput.text = rowData.allocated_hours
-                        selectedAccountUserId = accountId
-                        selectedColor = rowData.color_pallet != null ? rowData.color_pallet : '#FFFFFF'
-                        parentProjectInput.text = parent_project.rows.length > 0 ? parent_project.rows.item(0).name || "" : "";
-                        selectedparentProjectId = rowData.parent_id
-                        img_star.selectedPriority = rowData.favorites || 0; 
-                        descriptionProject.text = rowData.description
-                            .replace(/<[^>]+>/g, " ")     
-                            .replace(/&nbsp;/g, "")       
-                            .replace(/&lt;/g, "<")         
-                            .replace(/&gt;/g, ">")         
-                            .replace(/&amp;/g, "&")        
-                            .replace(/&quot;/g, "\"")      
-                            .replace(/&#39;/g, "'")        
-                            .trim() || "";
-
-
-                    }
-                });
-                function formatDate(date) {
-                    var month = date.getMonth() + 1; 
-                    var day = date.getDate();
-                    var year = date.getFullYear();
-                    return month + '/' + day + '/' + year;
-                }
+            var project_details = Project.get_project_detail(rowId, workpersonaSwitchState);
+            startDateInput.text = project_details.start_date;
+            endDateInput.text = project_details.end_date;
+            accountInput.text = project_details.account_name;
+            nameInput.text = project_details.name;
+            allocatedhoursInput.text = project_details.allocated_hours;
+            selectedAccountUserId = project_details.account_id;
+            selectedColor = project_details.selected_color;
+            parentProjectInput.text = project_details.parent_project_name;
+            selectedparentProjectId = project_details.parent_id;
+            img_star.selectedPriority = project_details.favorites;
+            descriptionProject.text = project_details.description;
         }
         
         Column {
