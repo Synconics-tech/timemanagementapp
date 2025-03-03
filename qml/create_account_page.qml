@@ -85,7 +85,7 @@ Page {
         contentHeight: signup_shape.height + 1500
         flickableDirection: Flickable.VerticalFlick
         anchors.top: pageHeader.bottom
-        anchors.topMargin: pageHeader.height
+        anchors.topMargin: pageHeader.height + units.gu(2)
         width: parent.width
         LomiriShape {
             id: signup_shape
@@ -95,25 +95,27 @@ Page {
             radius: "large"
             width: parent.width
             height: parent.height
+            // anchors.topMargin: 5
 
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter
                 id: accountRow
+                // leftPadding: units.gu(5)
                 anchors.topMargin: 5
-                Column {
+                // Column {
                     Rectangle {
-                        width: units.gu(40)
-                        height: units.gu(3)
+                        width: units.gu(12)
+                        height: units.gu(4)
                         Label {
                             id: account_name_label
                             text: "Account Name"
-                            anchors.horizontalCenter: parent.horizontalCenter
+                            // anchors.horizontalCenter: parent.horizontalCenter
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
                     Rectangle {
-                        width: units.gu(40)
-                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: units.gu(28)
+                        // anchors.horizontalCenter: parent.horizontalCenter
                         height: units.gu(5)
                         TextField {
                             id: accountNameInput
@@ -122,7 +124,7 @@ Page {
                             width: parent.width
                         }
                     }
-                }
+                // }
             }
 
             Row {
@@ -130,13 +132,13 @@ Page {
                 anchors.top: accountRow.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.topMargin: 5
-                Column {
-                    height: units.gu(10)
+                // Column {
+                    // height: units.gu(5)
                     Rectangle {
-                        width: units.gu(40)
+                        width: units.gu(12)
                         // anchors.left: parent.left
                         // anchors.horizontalCenter: parent.horizontalCenter
-                        height: units.gu(3)
+                        height: units.gu(4)
                         Label {
                             id: link_label
                             text: "Link"
@@ -146,8 +148,8 @@ Page {
                         }
                     }
                     Rectangle {
-                        width: units.gu(40)
-                        height: units.gu(5)
+                        width: units.gu(28)
+                        height: units.gu(4)
                         
                         TextField {
                             id: linkInput
@@ -192,26 +194,29 @@ Page {
                             }
                         }
                     }
-                    Text {
-                        id: errorMessage
-                        text: isValidUrl ? "" : "Please enter a valid URL"
-                        color: "red"
-                        visible: !isValidUrl
-                    }
 
 
-                }
+                // }
+            }
+            Text {
+                id: errorMessage
+                text: isValidUrl ? "" : "Please enter a valid URL"
+                color: "red"
+                visible: !isValidUrl
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: linkRow.bottom
             }
 
             Row {
                 id: databaseRow
-                anchors.top: linkRow.bottom
+                anchors.top: isValidUrl ? linkRow.bottom : errorMessage.bottom
                 anchors.topMargin: 5
                 anchors.horizontalCenter: parent.horizontalCenter
-                Column {
-                    visible: isTextInputVisible
+                visible: isTextInputVisible
+                // Column {
+                //     visible: isTextInputVisible
                     Rectangle {
-                        width: units.gu(40)
+                        width: units.gu(12)
                         height: units.gu(3)
                         Label {
                             id: database_name_label
@@ -221,7 +226,7 @@ Page {
                         }
                     }
                     Rectangle {
-                        width: units.gu(40)
+                        width: units.gu(28)
                         // anchors.left: parent.left
                         // anchors.horizontalCenter: parent.horizontalCenter
                         height: units.gu(5)
@@ -232,12 +237,18 @@ Page {
                             width: parent.width
                         }
                     }
-                }
-
-                Column {
-                    visible: isTextMenuVisible
+                // }
+            }
+            Row {
+                id: databaseListRow
+                anchors.top: isValidUrl ? linkRow.bottom : errorMessage.bottom
+                anchors.topMargin: 5
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: isTextMenuVisible
+                // Column {
+                //     visible: isTextMenuVisible
                     Rectangle {
-                        width: units.gu(40)
+                        width: units.gu(12)
                         height: units.gu(3)
                         Label {
                             id: database_list_label
@@ -247,7 +258,7 @@ Page {
                         }
                     }
                     Rectangle {
-                        width: units.gu(40)
+                        width: units.gu(28)
                         // anchors.left: parent.left
                         // anchors.horizontalCenter: parent.horizontalCenter
                         height: units.gu(5)
@@ -277,7 +288,7 @@ Page {
 
                         }
                     }
-                }
+                // }
             }
 
             Row {
@@ -285,12 +296,10 @@ Page {
                 anchors.top: databaseRow.bottom
                 anchors.topMargin: 5
                 anchors.horizontalCenter: parent.horizontalCenter
-                Column {
+                // Column {
                     Rectangle {
-                        width: units.gu(40)
-                        // anchors.left: parent.left
-                        // anchors.horizontalCenter: parent.horizontalCenter
-                        height: units.gu(3)
+                        width: units.gu(12)
+                        height: units.gu(4)
                          Label {
                             id: username_label
                             text: "Username"
@@ -300,7 +309,7 @@ Page {
                         }
                     }
                     Rectangle {
-                        width: units.gu(40)
+                        width: units.gu(28)
                         // anchors.left: parent.left
                         // anchors.horizontalCenter: parent.horizontalCenter
                         height: units.gu(5)
@@ -311,7 +320,7 @@ Page {
                             width: parent.width
                         }
                     }
-                }
+                // }
             }
 
             Row {
@@ -319,10 +328,10 @@ Page {
                 anchors.top: usernameRow.bottom
                 anchors.topMargin: 5
                 anchors.horizontalCenter: parent.horizontalCenter
-                Column {
+                // Column {
                     Rectangle {
-                        width: units.gu(40)
-                        height: units.gu(3)
+                        width: units.gu(12)
+                        height: units.gu(5)
                          Label {
                             id: connectwith_label
                             text: "Connect With"
@@ -332,7 +341,7 @@ Page {
                         }
                     }
                     Rectangle {
-                        width: units.gu(40)
+                        width: units.gu(28)
                         height: units.gu(5)
                         ComboBox {
                             id: connectWith_combo
@@ -363,7 +372,7 @@ Page {
 
                         }
                     }
-                }
+                // }
             }
 
             Row {
@@ -371,12 +380,12 @@ Page {
                 anchors.top: connectWithRow.bottom
                 anchors.topMargin: 5
                 anchors.horizontalCenter: parent.horizontalCenter
-                Column {
+                // Column {
                     Rectangle {
-                        width: units.gu(40)
+                        width: units.gu(10)
                         // anchors.left: parent.left
                         // anchors.horizontalCenter: parent.horizontalCenter
-                        height: units.gu(3)
+                        height: units.gu(4)
                         Label {
                             id: password_label
                             text: connectWith_combo.currentIndex == 1 ? "Password" : "API Key"
@@ -385,11 +394,11 @@ Page {
                             //textSize: Label.Large
                         }
                     }
-                    Row {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        spacing: 5
+                    // Row {
+                        // anchors.horizontalCenter: parent.horizontalCenter
+                        // spacing: 5
                         Rectangle {
-                            width: units.gu(35)
+                            width: units.gu(23)
                             height: units.gu(5)
                             TextField {
                                 id: passwordInput
@@ -400,7 +409,7 @@ Page {
                             }
                         }
                         Button {
-                            width: units.gu(5)
+                            width: units.gu(4)
                             height: passwordInput.height
                             Image {
                                 source: isPasswordVisible ? "images/show.png" : "images/hide.png"
@@ -412,8 +421,8 @@ Page {
                             }
                         }
                     }
-                }
-            }
+                // }
+            // }
 
             Text {
                 id: errorMessageAccount
